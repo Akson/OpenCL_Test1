@@ -22,17 +22,17 @@ float *pInputVector1;
 float *pInputVector2;
 float *pOutputVector;
 float *pOutputVectorHost;
-float hostPerformanceTimeMS = 0;
+double hostPerformanceTimeMS = 0;
 std::vector<double> timeValues;
 
 void PrintTimeStatistic()
 {
 	std::sort(timeValues.begin(), timeValues.end());
-	float totalTime = std::accumulate(timeValues.begin(), timeValues.end(), 0);
-	float averageTime = totalTime/timeValues.size();
-	float minTime = timeValues[0];
-	float maxTime = timeValues[timeValues.size()-1];
-	float medianTime = timeValues[timeValues.size()/2];
+	double totalTime = std::accumulate(timeValues.begin(), timeValues.end(), 0.0);
+	double averageTime = totalTime/timeValues.size();
+	double minTime = timeValues[0];
+	double maxTime = timeValues[timeValues.size()-1];
+	double medianTime = timeValues[timeValues.size()/2];
 	cout << "Calculation time statistic: (" << timeValues.size() << " runs)" << endl;
 	cout << "Med: " << medianTime << " ms (" << hostPerformanceTimeMS/medianTime << "X faster then host)" << endl;
 	cout << "Avg: " << averageTime << " ms" << endl;
@@ -47,11 +47,11 @@ void GenerateTestData()
 	pOutputVector = new float[DATA_SIZE];
 	pOutputVectorHost = new float[DATA_SIZE];
 
-	srand (time(NULL));
+	srand ((unsigned int)time(NULL));
 	for (int i=0; i<DATA_SIZE; i++)
 	{
-		pInputVector1[i] = rand() * 1000.0 / RAND_MAX;
-		pInputVector2[i] = rand() * 1000.0 / RAND_MAX;
+		pInputVector1[i] = rand() * 1000.0f / RAND_MAX;
+		pInputVector2[i] = rand() * 1000.0f / RAND_MAX;
 	}
 }
 
@@ -81,7 +81,7 @@ void PerformCalculationsOnHost()
 		double time = 1000 * (double)(end_count - start_count) / (double)freq;
 		timeValues.push_back(time);
 	}
-	hostPerformanceTimeMS = std::accumulate(timeValues.begin(), timeValues.end(), 0)/timeValues.size();
+	hostPerformanceTimeMS = std::accumulate(timeValues.begin(), timeValues.end(), 0.0)/timeValues.size();
 
 	PrintTimeStatistic();
 }
@@ -177,14 +177,14 @@ int main(int argc, char* argv[])
 	vector<cl::Platform> platforms;
 	cl::Platform::get(&platforms);
 
-	for (int iPlatform=0; iPlatform<platforms.size(); iPlatform++)
+	for (unsigned int iPlatform=0; iPlatform<platforms.size(); iPlatform++)
 	{
 		//Get all available devices on selected platform
 		std::vector<cl::Device> devices;
 		platforms[iPlatform].getDevices(CL_DEVICE_TYPE_ALL, &devices);
 
 		//Perform test on each device
-		for (int iDevice=0; iDevice<devices.size(); iDevice++)
+		for (unsigned int iDevice=0; iDevice<devices.size(); iDevice++)
 		{
 			try 
 			{ 
