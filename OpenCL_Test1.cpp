@@ -12,6 +12,7 @@
 #include <numeric>
 #include <iomanip>
 #include <algorithm>
+#include <conio.h>
 using namespace std;
 
 float MathCalculations(float a, float b);
@@ -203,6 +204,8 @@ int main(int argc, char* argv[])
 	delete[](pInputVector2);
 	delete[](pOutputVector);
 	delete[](pOutputVectorHost);
+
+	getch();
 
 	return 0;
 }
