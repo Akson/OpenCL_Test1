@@ -13,6 +13,15 @@
 #include <iomanip>
 #include <algorithm>
 #include <conio.h>
+
+#include <thread>
+#include <ppl.h>
+#include <array>
+#include <sstream>
+#include <iostream>
+#include <vector>
+
+using namespace Concurrency;
 using namespace std;
 
 float MathCalculations(float a, float b);
@@ -72,9 +81,6 @@ void PerformCalculationsOnHost()
 		QueryPerformanceCounter((LARGE_INTEGER*)&start_count);
 		for(int iJob=0; iJob<DATA_SIZE; iJob++)
 		{
-			//Check boundary conditions
-			if (iJob >= DATA_SIZE) break; 
-
 			//Perform calculations
 			pOutputVectorHost[iJob] = MathCalculations(pInputVector1[iJob], pInputVector2[iJob]);
 		}
@@ -83,6 +89,121 @@ void PerformCalculationsOnHost()
 		timeValues.push_back(time);
 	}
 	hostPerformanceTimeMS = std::accumulate(timeValues.begin(), timeValues.end(), 0.0)/timeValues.size();
+
+	PrintTimeStatistic();
+}
+
+void PerformCalculationsOnHostParallelFor()
+{
+	cout << endl << "-------------------------------------------------" << endl;
+	cout << "Device: Host parallel_for" << endl << endl;
+
+	//Some performance measurement
+	timeValues.clear();
+	__int64 start_count;
+	__int64 end_count;
+	__int64 freq;
+	QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+
+	for(int iTest=0; iTest<(TESTS_NUMBER/5); iTest++)
+	{
+		QueryPerformanceCounter((LARGE_INTEGER*)&start_count);
+		parallel_for(size_t(0), size_t(DATA_SIZE), [&](size_t iJob)
+		{
+			//Perform calculations
+			pOutputVector[iJob] = MathCalculations(pInputVector1[iJob], pInputVector2[iJob]);
+		});
+		QueryPerformanceCounter((LARGE_INTEGER*)&end_count);
+		double time = 1000 * (double)(end_count - start_count) / (double)freq;
+		timeValues.push_back(time);
+	}
+
+	PrintTimeStatistic();
+}
+
+void STDThreadCalculationFunction(int start, int end)
+{
+	for(int iJob=start; iJob<end; iJob++)
+	{
+		//Perform calculations
+		pOutputVector[iJob] = MathCalculations(pInputVector1[iJob], pInputVector2[iJob]);
+	}
+}
+
+void PerformCalculationsOnHostSTDThread()
+{
+	cout << endl << "-------------------------------------------------" << endl;
+	cout << "Device: Host std::thread" << endl << endl;
+
+	//Some performance measurement
+	timeValues.clear();
+	__int64 start_count;
+	__int64 end_count;
+	__int64 freq;
+	QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+
+	int threadsNumber = max(1, std::thread::hardware_concurrency());
+	cout << "Threads number: " << threadsNumber << endl << endl;
+	int jobsPerThread = DATA_SIZE/threadsNumber;
+
+	for(int iTest=0; iTest<(TESTS_NUMBER/5); iTest++)
+	{
+		QueryPerformanceCounter((LARGE_INTEGER*)&start_count);
+		
+		int curStartJob = 0;
+		std::vector<std::thread> threadVector;
+		for(int iThread=0; iThread<threadsNumber; iThread++)
+		{
+			threadVector.push_back(std::thread(STDThreadCalculationFunction, curStartJob, min(curStartJob+jobsPerThread, DATA_SIZE)));
+			curStartJob += jobsPerThread;
+		}
+
+		for(auto thread=threadVector.begin(); thread!=threadVector.end(); thread++)
+			thread->join();
+
+		QueryPerformanceCounter((LARGE_INTEGER*)&end_count);
+		double time = 1000 * (double)(end_count - start_count) / (double)freq;
+		timeValues.push_back(time);
+	}
+
+	PrintTimeStatistic();
+}
+
+void PerformCalculationsOnHostSTDThread1()
+{
+	cout << endl << "-------------------------------------------------" << endl;
+	cout << "Device: Host std::thread 1 " << endl << endl;
+
+	//Some performance measurement
+	timeValues.clear();
+	__int64 start_count;
+	__int64 end_count;
+	__int64 freq;
+	QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+
+	int threadsNumber = 1;
+	cout << "Threads number: " << threadsNumber << endl << endl;
+	int jobsPerThread = DATA_SIZE/threadsNumber;
+
+	for(int iTest=0; iTest<(TESTS_NUMBER/5); iTest++)
+	{
+		QueryPerformanceCounter((LARGE_INTEGER*)&start_count);
+		
+		int curStartJob = 0;
+		std::vector<std::thread> threadVector;
+		for(int iThread=0; iThread<threadsNumber; iThread++)
+		{
+			threadVector.push_back(std::thread(STDThreadCalculationFunction, curStartJob, min(curStartJob+jobsPerThread, DATA_SIZE)));
+			curStartJob += jobsPerThread;
+		}
+
+		for(auto thread=threadVector.begin(); thread!=threadVector.end(); thread++)
+			thread->join();
+
+		QueryPerformanceCounter((LARGE_INTEGER*)&end_count);
+		double time = 1000 * (double)(end_count - start_count) / (double)freq;
+		timeValues.push_back(time);
+	}
 
 	PrintTimeStatistic();
 }
@@ -161,6 +282,7 @@ void CheckResults()
 		double relAbsDif = abs(absDif/pOutputVectorHost[iJob]);
 		avgRelAbsDiff += relAbsDif;
 		maxRelAbsDiff = max(maxRelAbsDiff, relAbsDif);
+		pOutputVector[iJob] = 0;
 	}
 	avgRelAbsDiff /= DATA_SIZE;
 
@@ -173,6 +295,12 @@ int main(int argc, char* argv[])
 {
 	GenerateTestData();
 	PerformCalculationsOnHost();
+	PerformCalculationsOnHostParallelFor();
+	CheckResults();
+	PerformCalculationsOnHostSTDThread();
+	CheckResults();
+	PerformCalculationsOnHostSTDThread1();
+	CheckResults();
 
 	//Get all available platforms
 	vector<cl::Platform> platforms;
@@ -205,7 +333,7 @@ int main(int argc, char* argv[])
 	delete[](pOutputVector);
 	delete[](pOutputVectorHost);
 
-	getch();
+	_getch();
 
 	return 0;
 }
