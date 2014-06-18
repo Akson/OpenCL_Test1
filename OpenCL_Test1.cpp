@@ -65,6 +65,39 @@ void GenerateTestData()
 	}
 }
 
+void STDThreadCalculationFunction(int start, int end)
+{
+	for(int iJob=start; iJob<end; iJob++)
+	{
+		//Perform calculations
+		pOutputVector[iJob] = MathCalculations(pInputVector1[iJob], pInputVector2[iJob]);
+	}
+}
+
+void PerformCalculationsOnHostSeparateFunction()
+{
+    cout << endl << "-------------------------------------------------" << endl;
+    cout << "Device: Host separate function" << endl << endl;
+
+    //Some performance measurement
+    timeValues.clear();
+    __int64 start_count;
+    __int64 end_count;
+    __int64 freq;
+    QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+
+    for(int iTest = 0; iTest < (TESTS_NUMBER / 5); iTest++)
+    {
+        QueryPerformanceCounter((LARGE_INTEGER*)&start_count);
+        STDThreadCalculationFunction(0, DATA_SIZE);
+        QueryPerformanceCounter((LARGE_INTEGER*)&end_count);
+        double time = 1000 * (double)(end_count - start_count) / (double)freq;
+        timeValues.push_back(time);
+    }
+
+    PrintTimeStatistic();
+}
+
 void PerformCalculationsOnHost()
 {
 	cout << "Device: Host" << endl << endl;
@@ -119,15 +152,6 @@ void PerformCalculationsOnHostParallelFor()
 	}
 
 	PrintTimeStatistic();
-}
-
-void STDThreadCalculationFunction(int start, int end)
-{
-	for(int iJob=start; iJob<end; iJob++)
-	{
-		//Perform calculations
-		pOutputVector[iJob] = MathCalculations(pInputVector1[iJob], pInputVector2[iJob]);
-	}
 }
 
 void PerformCalculationsOnHostSTDThread()
@@ -295,7 +319,9 @@ int main(int argc, char* argv[])
 {
 	GenerateTestData();
 	PerformCalculationsOnHost();
-	PerformCalculationsOnHostParallelFor();
+    PerformCalculationsOnHostSeparateFunction();
+    CheckResults();
+    PerformCalculationsOnHostParallelFor();
 	CheckResults();
 	PerformCalculationsOnHostSTDThread();
 	CheckResults();
